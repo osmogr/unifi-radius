@@ -1,0 +1,95 @@
+#
+# Default FreeRADIUS virtual server configuration
+# Configured for MAC-based authentication with SQL backend
+#
+
+server default {
+
+authorize {
+    # Always accept the authentication (we only care about attributes)
+    update control {
+        Auth-Type := Accept
+    }
+    
+    # Get VLAN assignment from SQL database
+    sql
+    
+    # If no reply attributes found, reject
+    if (!reply:Tunnel-Private-Group-ID) {
+        reject
+    }
+}
+
+authenticate {
+    # Accept all requests since we're doing MAC-based auth
+    Auth-Type Accept {
+        ok
+    }
+}
+
+preacct {
+    preprocess
+    
+    # Ensure we have an Acct-Session-Id
+    acct_unique
+    
+    suffix
+    files
+}
+
+accounting {
+    # Log accounting to SQL
+    sql
+    
+    # Log to detail file
+    detail
+}
+
+session {
+    sql
+}
+
+post-auth {
+    # Log successful authentications
+    sql
+    
+    Post-Auth-Type REJECT {
+        # Log failed authentications
+        sql
+        attr_filter.access_reject
+    }
+}
+
+pre-proxy {
+}
+
+post-proxy {
+}
+
+} # server default
+
+# Listen configuration
+listen {
+    type = auth
+    ipaddr = *
+    port = 1812
+    
+    # Limit the number of outstanding requests  
+    limit {
+        max_connections = 16
+        lifetime = 0
+        idle_timeout = 30
+    }
+}
+
+listen {
+    type = acct
+    ipaddr = *
+    port = 1813
+    
+    limit {
+        max_connections = 16
+        lifetime = 0
+        idle_timeout = 30
+    }
+}

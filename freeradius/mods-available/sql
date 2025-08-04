@@ -1,0 +1,175 @@
+sql {
+    #
+    # MySQL SQL configuration for FreeRADIUS
+    #
+    
+    # Database connection info
+    driver = "rlm_sql_mysql"
+    
+    # Database server configuration
+    server = "db"
+    port = 3306
+    login = "radius_user"
+    password = "radius_password"
+    radius_db = "radius"
+    
+    # Connection pool settings
+    pool {
+        start = 5
+        min = 4
+        max = 32
+        spare = 3
+        uses = 0
+        retry_delay = 30
+        lifetime = 0
+        idle_timeout = 60
+    }
+    
+    # Database schema configuration
+    read_groups = yes
+    delete_stale_sessions = yes
+    
+    # SQL queries for authentication
+    authorize_check_query = "\
+        SELECT id, username, attribute, value, op \
+        FROM radcheck \
+        WHERE username = '%{SQL-User-Name}' \
+        ORDER BY id"
+        
+    authorize_reply_query = "\
+        SELECT id, username, attribute, value, op \
+        FROM radreply \
+        WHERE username = '%{SQL-User-Name}' \
+        UNION \
+        SELECT \
+            (mp.id + 10000) as id, \
+            '%{SQL-User-Name}' as username, \
+            'Tunnel-Type' as attribute, \
+            'VLAN' as value, \
+            ':=' as op \
+        FROM mac_prefixes mp \
+        WHERE SUBSTRING('%{SQL-User-Name}', 1, 8) = mp.prefix \
+        AND '%{SQL-User-Name}' NOT IN (SELECT username FROM radreply) \
+        UNION \
+        SELECT \
+            (mp.id + 20000) as id, \
+            '%{SQL-User-Name}' as username, \
+            'Tunnel-Medium-Type' as attribute, \
+            'IEEE-802' as value, \
+            ':=' as op \
+        FROM mac_prefixes mp \
+        WHERE SUBSTRING('%{SQL-User-Name}', 1, 8) = mp.prefix \
+        AND '%{SQL-User-Name}' NOT IN (SELECT username FROM radreply) \
+        UNION \
+        SELECT \
+            (mp.id + 30000) as id, \
+            '%{SQL-User-Name}' as username, \
+            'Tunnel-Private-Group-ID' as attribute, \
+            CAST(mp.vlan_id AS CHAR) as value, \
+            ':=' as op \
+        FROM mac_prefixes mp \
+        WHERE SUBSTRING('%{SQL-User-Name}', 1, 8) = mp.prefix \
+        AND '%{SQL-User-Name}' NOT IN (SELECT username FROM radreply) \
+        UNION \
+        SELECT \
+            (dvc.id + 40000) as id, \
+            '%{SQL-User-Name}' as username, \
+            'Tunnel-Type' as attribute, \
+            'VLAN' as value, \
+            ':=' as op \
+        FROM default_vlan_config dvc \
+        WHERE dvc.enabled = 1 \
+        AND '%{SQL-User-Name}' NOT IN (SELECT username FROM radreply) \
+        AND SUBSTRING('%{SQL-User-Name}', 1, 8) NOT IN (SELECT prefix FROM mac_prefixes) \
+        UNION \
+        SELECT \
+            (dvc.id + 50000) as id, \
+            '%{SQL-User-Name}' as username, \
+            'Tunnel-Medium-Type' as attribute, \
+            'IEEE-802' as value, \
+            ':=' as op \
+        FROM default_vlan_config dvc \
+        WHERE dvc.enabled = 1 \
+        AND '%{SQL-User-Name}' NOT IN (SELECT username FROM radreply) \
+        AND SUBSTRING('%{SQL-User-Name}', 1, 8) NOT IN (SELECT prefix FROM mac_prefixes) \
+        UNION \
+        SELECT \
+            (dvc.id + 60000) as id, \
+            '%{SQL-User-Name}' as username, \
+            'Tunnel-Private-Group-ID' as attribute, \
+            CAST(dvc.vlan_id AS CHAR) as value, \
+            ':=' as op \
+        FROM default_vlan_config dvc \
+        WHERE dvc.enabled = 1 \
+        AND '%{SQL-User-Name}' NOT IN (SELECT username FROM radreply) \
+        AND SUBSTRING('%{SQL-User-Name}', 1, 8) NOT IN (SELECT prefix FROM mac_prefixes) \
+        ORDER BY id"
+        
+    # Group membership queries (not used for MAC-based auth but required)
+    group_membership_query = "\
+        SELECT groupname \
+        FROM radusergroup \
+        WHERE username = '%{SQL-User-Name}' \
+        ORDER BY priority"
+        
+    # Accounting queries
+    accounting_onoff_query = "\
+        UPDATE radacct \
+        SET acctstoptime = FROM_UNIXTIME(%{%{integer:Event-Timestamp}:-'%S'}), \
+            acctsessiontime = '%{%{integer:Event-Timestamp}:-'%S'}' - \
+                              UNIX_TIMESTAMP(acctstarttime), \
+            acctterminatecause = '%{%{Acct-Terminate-Cause}:-NAS-Reboot}' \
+        WHERE acctstoptime IS NULL \
+        AND nasipaddress = '%{NAS-IP-Address}' \
+        AND acctstarttime <= FROM_UNIXTIME(%{%{integer:Event-Timestamp}:-'%S'})"
+        
+    accounting_update_query = "\
+        UPDATE radacct \
+        SET framedipaddress = '%{Framed-IP-Address}', \
+            acctsessiontime = '%{%{Acct-Session-Time}:-0}', \
+            acctinputoctets = '%{%{Acct-Input-Octets}:-0}', \
+            acctoutputoctets = '%{%{Acct-Output-Octets}:-0}' \
+        WHERE acctsessionid = '%{Acct-Session-Id}' \
+        AND username = '%{SQL-User-Name}' \
+        AND nasipaddress = '%{NAS-IP-Address}'"
+        
+    accounting_start_query = "\
+        INSERT INTO radacct \
+            (acctsessionid, acctuniqueid, username, \
+             nasipaddress, nasportid, nasporttype, acctstarttime, \
+             acctupdatetime, acctstoptime, acctsessiontime, \
+             acctauthentic, connectinfo_start, connectinfo_stop, \
+             acctinputoctets, acctoutputoctets, calledstationid, \
+             callingstationid, acctterminatecause, servicetype, \
+             framedprotocol, framedipaddress) \
+        VALUES \
+            ('%{Acct-Session-Id}', '%{Acct-Unique-Session-Id}', \
+             '%{SQL-User-Name}', '%{NAS-IP-Address}', '%{%{NAS-Port}:-0}', \
+             '%{%{NAS-Port-Type}:-Virtual}', FROM_UNIXTIME(%{integer:Event-Timestamp}), \
+             FROM_UNIXTIME(%{integer:Event-Timestamp}), NULL, '0', \
+             '%{%{Acct-Authentic}:-RADIUS}', '%{%{Connect-Info}:-N/A}', '', '0', '0', \
+             '%{%{Called-Station-Id}:-}', '%{%{Calling-Station-Id}:-}', '', \
+             '%{%{Service-Type}:-Framed-User}', '%{%{Framed-Protocol}:-PPP}', \
+             '%{%{Framed-IP-Address}:-}')"
+             
+    accounting_stop_query = "\
+        UPDATE radacct SET \
+            acctstoptime = FROM_UNIXTIME(%{%{integer:Event-Timestamp}:-'%S'}), \
+            acctsessiontime = '%{%{Acct-Session-Time}:-0}', \
+            acctinputoctets = '%{%{Acct-Input-Octets}:-0}', \
+            acctoutputoctets = '%{%{Acct-Output-Octets}:-0}', \
+            acctterminatecause = '%{%{Acct-Terminate-Cause}:-User-Request}', \
+            connectinfo_stop = '%{%{Connect-Info}:-N/A}' \
+        WHERE acctsessionid = '%{Acct-Session-Id}' \
+        AND username = '%{SQL-User-Name}' \
+        AND nasipaddress = '%{NAS-IP-Address}'"
+        
+    # Post-authentication query (optional)
+    post_auth_query = "\
+        INSERT INTO radpostauth \
+            (username, pass, reply, authdate) \
+        VALUES ( \
+            '%{SQL-User-Name}', \
+            '%{%{User-Password}:-%{Chap-Password}}', \
+            '%{reply:Packet-Type}', '%S')"
+}
