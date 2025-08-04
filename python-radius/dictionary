@@ -1,0 +1,23 @@
+
+# Basic RADIUS dictionary for UniFi VLAN assignment
+ATTRIBUTE	User-Name		1	string
+ATTRIBUTE	User-Password		2	string
+ATTRIBUTE	NAS-IP-Address		4	ipaddr
+ATTRIBUTE	NAS-Port		5	integer
+ATTRIBUTE	Service-Type		6	integer
+ATTRIBUTE	Called-Station-Id	30	string
+ATTRIBUTE	Calling-Station-Id	31	string
+ATTRIBUTE	NAS-Identifier		32	string
+ATTRIBUTE	Tunnel-Type		64	integer
+ATTRIBUTE	Tunnel-Medium-Type	65	integer
+ATTRIBUTE	Tunnel-Private-Group-ID	81	string
+
+# Tunnel-Type values
+VALUE	Tunnel-Type		VLAN		13
+
+# Tunnel-Medium-Type values  
+VALUE	Tunnel-Medium-Type	IEEE-802	6
+
+# Service-Type values
+VALUE	Service-Type		Login-User	1
+VALUE	Service-Type		Framed-User	2
