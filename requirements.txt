@@ -1,0 +1,4 @@
+# Python RADIUS Server Dependencies
+pyrad==2.4
+mysql-connector-python==8.2.0
+python-dotenv==1.0.0

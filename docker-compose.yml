@@ -1,0 +1,105 @@
+services:
+  traefik:
+    image: traefik:v2.11
+    container_name: traefik
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.radius-auth.address=:1812/udp
+      - --entrypoints.radius-acct.address=:1813/udp
+    ports:
+      - "80:80"
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - radius-network
+
+  web:
+    build: .
+    container_name: unifi-radius-web
+    volumes:
+      - ./website:/var/www/html
+      - ./logs/apache:/var/log/apache2
+    environment:
+      - DB_HOST=db
+      - DB_NAME=radius
+      - DB_USER=radius_user
+      - DB_PASS=radius_password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - radius-network
+    ports:
+      - "8555:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  db:
+    image: mysql:8.0
+    container_name: unifi-radius-db
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: radius
+      MYSQL_USER: radius_user
+      MYSQL_PASSWORD: radius_password
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./website/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    networks:
+      - radius-network
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  python-radius:
+    build:
+      context: .
+      dockerfile: Dockerfile.python-radius
+    container_name: unifi-radius-python
+    volumes:
+      - ./logs/python-radius:/var/log
+      - ./python-radius/.env:/app/.env:ro
+    environment:
+      - DB_HOST=db
+      - DB_NAME=radius
+      - DB_USER=radius_user
+      - DB_PASS=radius_password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - radius-network
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.udp.routers.radius-auth.entrypoints=radius-auth
+      - traefik.udp.routers.radius-auth.service=python-radius-auth
+      - traefik.udp.services.python-radius-auth.loadbalancer.server.port=1812
+      - traefik.udp.routers.radius-acct.entrypoints=radius-acct
+      - traefik.udp.routers.radius-acct.service=python-radius-acct
+      - traefik.udp.services.python-radius-acct.loadbalancer.server.port=1813
+
+networks:
+  radius-network:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
