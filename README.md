@@ -4,8 +4,8 @@ A complete LAMP-based admin website for managing UniFi WiFi clients and VLAN ass
 
 ## Features
 
-- **RADIUS Server Options**: Choose between FreeRADIUS (full-featured) or Python RADIUS server (lightweight)
-- **FreeRADIUS Integration**: Compatible with FreeRADIUS default schema using `radcheck` and `radreply` tables
+- **RADIUS Server: Python RADIUS server (lightweight)
+
 - **VLAN Management**: Assign VLANs to MAC addresses using standard RADIUS attributes
 - **MAC Prefix Support**: Assign VLANs to vendor prefixes (first 3 octets) for bulk device management
 - **UniFi API Integration**: Import wireless clients directly from UniFi Controller
@@ -14,14 +14,6 @@ A complete LAMP-based admin website for managing UniFi WiFi clients and VLAN ass
 - **Client Management**: Add, edit, delete, and view client assignments
 - **Search & Filter**: Find clients by MAC address, description, or VLAN
 - **Bulk Import**: Select and import multiple clients from UniFi with VLAN assignments
-
-## Requirements
-
-- **Web Server**: Apache/Nginx with PHP 8.0+
-- **Database**: MySQL/MariaDB 5.7+
-- **PHP Extensions**: PDO, cURL, JSON
-- **RADIUS Server**: FreeRADIUS or Python RADIUS server (included)
-- **UniFi Controller**: For API integration (optional)
 
 ## Quick Start with Docker
 
@@ -66,70 +58,6 @@ For detailed Docker setup instructions, see [DOCKER.md](docs/DOCKER.md).
 - **Password**: `admin123`
 
 **Important**: Change the default credentials in production by updating the `admin_users` table or modifying `website/auth.php`.
-
-## RADIUS Server Integration
-
-This system supports two RADIUS server options:
-
-### Python RADIUS Server (Default)
-
-A lightweight, custom Python implementation that provides:
-- Low resource usage (~50MB memory vs ~200MB for FreeRADIUS)
-- Fast startup (~2 seconds)
-- Easy customization and debugging
-- Same database schema and compatibility
-
-### FreeRADIUS Integration (Alternative)
-
-For traditional FreeRADIUS deployment, the application uses the standard FreeRADIUS schema with these key tables:
-
-- **`radcheck`**: User authentication (not used for MAC-based auth)
-- **`radreply`**: RADIUS reply attributes for VLAN assignments
-- **`client_notes`**: Additional table for client descriptions and timestamps  
-- **`mac_prefixes`**: MAC vendor prefix to VLAN assignments
-
-### VLAN Assignment Attributes
-
-For each MAC address (stored as username), the following attributes are set in `radreply`:
-
-```
-Tunnel-Type := VLAN
-Tunnel-Medium-Type := IEEE-802  
-Tunnel-Private-Group-ID := <vlan_id>
-```
-
-### MAC Prefix Matching
-
-When no exact MAC match is found, the system automatically checks for vendor prefix matches:
-
-1. **Exact Match**: First checks `radreply` table for exact MAC address
-2. **Prefix Match**: If no exact match, checks `mac_prefixes` table for vendor OUI match
-3. **Response**: Returns appropriate VLAN assignment based on match type
-
-The SQL query supports both exact and prefix matching with proper precedence.
-
-### FreeRADIUS Configuration
-
-Ensure your FreeRADIUS configuration includes:
-
-**sites-available/default**:
-```
-authorize {
-    sql
-}
-```
-
-**mods-available/sql** (MySQL configuration):
-```
-sql {
-    driver = "mysql"
-    server = "localhost"
-    port = 3306
-    login = "radius_user"
-    password = "radius_password"
-    radius_db = "radius"
-}
-```
 
 ## UniFi Controller Integration
 
@@ -231,11 +159,6 @@ The import fetches the following data for wireless clients:
 │   ├── .htaccess           # Apache configuration
 │   ├── apache.conf         # Apache virtual host configuration
 │   └── php.ini             # PHP configuration
-├── freeradius/         # FreeRADIUS configuration files
-│   ├── clients.conf        # RADIUS clients configuration
-│   ├── sql.conf           # SQL module configuration
-│   ├── mods-available/    # Available modules
-│   └── sites-available/   # Available sites
 └── mysql-init/         # MySQL initialization scripts
     ├── 01-schema.sql      # Database schema
     └── 02-freeradius-tables.sh # FreeRADIUS table setup
@@ -303,13 +226,6 @@ $normalized = normalizeMacPrefix($prefix);
 
 ## Troubleshooting
 
-### Database Connection Issues
-
-1. Verify MySQL/MariaDB service is running
-2. Check database credentials in `db.php`
-3. Ensure database user has proper permissions
-4. Test connection: `mysql -u radius_user -p radius`
-
 ### UniFi Connection Issues
 
 1. Verify Controller is accessible via HTTPS
@@ -317,62 +233,7 @@ $normalized = normalizeMacPrefix($prefix);
 3. Ensure admin credentials are correct
 4. Try connecting from same network as web server
 
-### FreeRADIUS Integration Issues
-
-1. Check SQL module is enabled in FreeRADIUS
-2. Verify database connection in FreeRADIUS config
-3. Test with `radtest` command
-4. Check FreeRADIUS logs: `/var/log/freeradius/radius.log`
-
-### Common Error Messages
-
-- **"Database connection failed"**: Check `db.php` configuration
-- **"Invalid MAC address format"**: Use format `aa:bb:cc:dd:ee:ff`
-- **"VLAN ID must be between 1 and 4094"**: Check VLAN range
-- **"Failed to connect to UniFi Controller"**: Check network connectivity and credentials
-
-## Production Deployment
-
-### Security Hardening
-
-1. **Change Default Credentials**:
-   ```sql
-   UPDATE admin_users SET password_hash = PASSWORD_HASH('new_password') WHERE username = 'admin';
-   ```
-
-2. **Use HTTPS**: Configure SSL/TLS certificate
-
-3. **Database Security**: 
-   - Use dedicated database user with minimal permissions
-   - Enable MySQL SSL connections
-   - Regular database backups
-
-4. **File Permissions**:
-   ```bash
-   chmod 640 db.php
-   chown www-data:www-data *.php
-   ```
-
-5. **Web Server Security**:
-   - Hide PHP version headers
-   - Disable directory browsing
-   - Configure proper error handling
-
-### Performance Optimization
-
-1. **PHP OpCache**: Enable PHP OpCache for better performance
-2. **Database Indexing**: Ensure proper indexes on `radreply.username`
-3. **Session Storage**: Consider Redis/Memcached for session storage
-4. **CDN**: Use CDN for Bootstrap CSS/JS if needed
-
 ## License
 
 This project is provided as-is for educational and production use. Modify as needed for your environment.
 
-## Support
-
-For issues and questions:
-1. Check this README for common solutions
-2. Review FreeRADIUS documentation
-3. Verify UniFi Controller API documentation
-4. Test with simplified configurations first
