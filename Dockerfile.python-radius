@@ -24,6 +24,9 @@ RUN mkdir -p /var/log && touch /var/log/radius-python.log
 RUN useradd -r -s /bin/false radiusd && \
     chown -R radiusd:radiusd /app /var/log/radius-python.log
 
+# Make start.sh executable
+RUN chmod +x ./start.sh
+
 # Switch to non-root user
 USER radiusd
 
