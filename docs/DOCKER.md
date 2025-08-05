@@ -8,7 +8,7 @@ The Docker setup consists of three containers:
 
 1. **Web Container** (`unifi-radius-web`): Apache + PHP 8.1 hosting the admin interface
 2. **Database Container** (`unifi-radius-db`): MySQL 8.0 with FreeRADIUS schema
-3. **FreeRADIUS Container** (`unifi-radius-freeradius`): FreeRADIUS 3+ with MySQL authentication
+3. **RADIUS Container** (`unifi-radius-python-radius`): Lite Python RADIUS with MySQL authentication
 
 ## Quick Start
 
@@ -17,7 +17,7 @@ The Docker setup consists of three containers:
 - Docker Engine 20.10+
 - Docker Compose 2.0+
 - 2GB+ RAM available
-- Ports 8080, 3306, 1812, 1813 available
+- Ports 8555, 3306, 1812, 1813 available
 
 ### 1. Clone and Start
 
@@ -29,18 +29,18 @@ docker-compose up -d
 
 ### 2. Access the Web Interface
 
-- **URL**: http://localhost:8080
+- **URL**: http://dockerhost:8555
 - **Username**: admin
 - **Password**: admin123
 
-### 3. Test FreeRADIUS
+### 3. Test RADIUS
 
 ```bash
 # Test authentication (from host machine)
 echo "User-Name=aa:bb:cc:dd:ee:f1,User-Password=test" | radclient localhost:1812 auth testing123
 
 # Check logs
-docker-compose logs freeradius
+docker-compose logs python-radius
 ```
 
 ## Configuration
@@ -58,9 +58,9 @@ DB_PASS=radius_password
 MYSQL_ROOT_PASSWORD=rootpassword
 
 # Web Interface Port
-WEB_PORT=8080
+WEB_PORT=8555
 
-# FreeRADIUS Ports
+# RADIUS Ports
 RADIUS_AUTH_PORT=1812
 RADIUS_ACCT_PORT=1813
 ```
