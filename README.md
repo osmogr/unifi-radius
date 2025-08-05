@@ -42,69 +42,6 @@ docker compose up -d
 
 For detailed Docker setup instructions, see [DOCKER.md](DOCKER.md).
 
-For Python RADIUS server setup and configuration, see [PYTHON_RADIUS.md](PYTHON_RADIUS.md).
-
-## Manual Installation
-
-### 1. Database Setup
-
-Create a MySQL/MariaDB database and import the schema:
-
-```sql
-CREATE DATABASE radius DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-Import the schema:
-```bash
-mysql -u root -p radius < website/schema.sql
-```
-
-### 2. Database Configuration
-
-Edit `website/db.php` and update the database connection settings:
-
-```php
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'radius');
-define('DB_USER', 'radius_user');
-define('DB_PASS', 'radius_password');
-```
-
-### 3. Web Server Configuration
-
-Place all files from the `website/` directory in your web server document root or a subdirectory.
-
-**Apache .htaccess** (optional):
-```apache
-RewriteEngine On
-RewriteCond %{HTTPS} off
-RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-
-<Files "db.php">
-    Require all denied
-</Files>
-
-<Files "auth.php">
-    Require all denied
-</Files>
-```
-
-### 4. PHP Configuration
-
-Ensure the following PHP extensions are enabled:
-- `pdo_mysql`
-- `curl`
-- `json`
-- `session`
-
-### 5. File Permissions
-
-Set appropriate permissions:
-```bash
-chmod 644 website/*.php
-chmod 600 website/db.php  # Protect database config
-```
-
 ## Default Login
 
 - **Username**: `admin`
@@ -123,8 +60,6 @@ A lightweight, custom Python implementation that provides:
 - Fast startup (~2 seconds)
 - Easy customization and debugging
 - Same database schema and compatibility
-
-See [PYTHON_RADIUS.md](PYTHON_RADIUS.md) for detailed documentation.
 
 ### FreeRADIUS Integration (Alternative)
 
@@ -275,7 +210,6 @@ The import fetches the following data for wireless clients:
 │   ├── import_unifi.php    # UniFi Controller integration
 │   ├── db.php              # Database connection and helpers
 │   ├── auth.php            # Authentication system
-│   ├── schema.sql          # Database schema
 │   ├── .htaccess           # Apache configuration
 │   ├── apache.conf         # Apache virtual host configuration
 │   └── php.ini             # PHP configuration
@@ -285,7 +219,7 @@ The import fetches the following data for wireless clients:
 │   ├── mods-available/    # Available modules
 │   └── sites-available/   # Available sites
 └── mysql-init/         # MySQL initialization scripts
-    ├── 01-schema.sql      # Database schema (symlinked)
+    ├── 01-schema.sql      # Database schema
     └── 02-freeradius-tables.sh # FreeRADIUS table setup
 ```
 
