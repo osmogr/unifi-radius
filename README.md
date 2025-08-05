@@ -42,6 +42,24 @@ docker compose up -d
 
 For detailed Docker setup instructions, see [DOCKER.md](DOCKER.md).
 
+## Integration with UniFi
+
+### UniFi Controller Configuration
+
+1. **RADIUS Settings** (Settings → Profiles → RADIUS):
+   - **Server**: Docker host IP
+   - **Port**: 1812
+   - **Secret**: Match `clients.conf`
+
+2. **SSID Configuration**:
+   - **Security**: WPA2/WPA3 Enterprise
+   - **RADIUS Profile**: Select configured profile
+   - **VLAN**: Enable "Use RADIUS assigned VLAN"
+
+3. **Guest Portal** (optional):
+   - **Authentication**: RADIUS
+   - **RADIUS Server**: Same as above
+
 ## Default Login
 
 - **Username**: `admin`
