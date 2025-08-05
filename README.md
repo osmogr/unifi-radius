@@ -49,7 +49,7 @@ For detailed Docker setup instructions, see [DOCKER.md](DOCKER.md).
 1. **RADIUS Settings** (Settings → Profiles → RADIUS):
    - **Server**: Docker host IP
    - **Port**: 1812
-   - **Secret**: Match `clients.conf`
+   - **Secret**: Match `radius_server.py` (testing123 is the default)
 
 2. **SSID Configuration**:
    - **Security**: WPA2/WPA3 Enterprise
