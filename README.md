@@ -48,10 +48,6 @@ For detailed Docker setup instructions, see [DOCKER.md](docs/DOCKER.md).
    - **RADIUS Profile**: Select configured profile
    - **VLAN**: Enable "Use RADIUS assigned VLAN"
 
-3. **Guest Portal** (optional):
-   - **Authentication**: RADIUS
-   - **RADIUS Server**: Same as above
-
 ## Default Login
 
 - **Username**: `admin`
