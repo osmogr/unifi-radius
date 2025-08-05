@@ -40,7 +40,7 @@ docker compose up -d
 # Username: admin, Password: admin123
 ```
 
-For detailed Docker setup instructions, see [DOCKER.md](DOCKER.md).
+For detailed Docker setup instructions, see [DOCKER.md](docs/DOCKER.md).
 
 ## Integration with UniFi
 
